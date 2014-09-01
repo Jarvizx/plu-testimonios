@@ -27,6 +27,7 @@ global $easy_t_footer_css_output;
 
 include('include/lib/lib.php');
 
+
 //setup JS
 function easy_testimonials_setup_js() {
 	$disable_cycle2 = get_option('easy_t_disable_cycle2');
@@ -196,8 +197,43 @@ function easy_t_outputCaptcha(){
 	</div>
 	<?php
 }
+
+function subir_foto($file, $id_post)
+{
+	if ($file['error'] !== UPLOAD_ERR_OK) __return_false();
+	// $filename should be the path to a file in the upload directory.
+	$filename = $file['foto'];
+
+	// The ID of the post this attachment is for.
+	$parent_post_id = $id_post;
+
+	// Check the type of tile. We'll use this as the 'post_mime_type'.
+	$filetype = wp_check_filetype( basename( $filename ), null );
+
+	// Get the path to the upload directory.
+	$wp_upload_dir = wp_upload_dir();
+
+	// Prepare an array of post data for the attachment.
+	$attachment = array(
+		'guid'           => $wp_upload_dir['url'] . '/' . basename( $filename ), 
+		'post_mime_type' => $filetype['type'],
+		'post_title'     => preg_replace( '/\.[^.]+$/', '', basename( $filename ) ),
+		'post_content'   => '',
+		'post_status'    => 'inherit'
+	);
+
+	// Make sure that this file is included, as wp_generate_attachment_metadata() depends on it.
+	require_once( ABSPATH . 'wp-admin/includes/image.php' );
+	require_once( ABSPATH . 'wp-admin/includes/file.php' );
+	require_once( ABSPATH . 'wp-admin/includes/media.php' );
+
+	$attach_id = media_handle_upload( 'foto', $_POST['post_id'] );
+	update_post_meta($parent_post_id,'_thumbnail_id',$attach_id);
+}
+
 	
 //submit testimonial shortcode
+
 function submitTestimonialForm($atts){     
 		ob_start();
 		
@@ -207,21 +243,74 @@ function submitTestimonialForm($atts){
         if( 'POST' == $_SERVER['REQUEST_METHOD'] && !empty( $_POST['action'] )) {
 			if(isValidKey()){  
 				$do_not_insert = false;
-				
+
+/*
+	1. valdar nombre
+	2. email
+	3. pais 		- select
+	4. programa  	- select
+	5. testimonio
+	6. foto 		- file
+
+*/
+				/* esto campo es el nombre*/
 				if (isset ($_POST['the-title']) && strlen($_POST['the-title']) > 0) {
-						$title =  $_POST['the-title'];
+					$title =  $_POST['the-title'];
+					$the_name =  $_POST['the-title'];
 				} else {
-						echo '<p class="easy_t_error">Please enter a ' . get_option('easy_t_title_field_label','title') . '.</p>';
-						$do_not_insert = true;
+					echo '<p class="easy_t_error">Please enter a ' . get_option('easy_t_title_field_label','title') . '.</p>';
+					$do_not_insert = true;
 				}
-			   
+
+				/* esto campo es el email*/
+				if (isset ($_POST['the-email']) && strlen($_POST['the-email']) > 0) {
+					$the_email = $_POST['the-email'];
+				}else{
+					// aqui va el mensaje, por lado del servidor
+					$do_not_insert = true;
+				}
+
+				/* esto campo es el pais*/
+				if (isset ($_POST['the-other']) && strlen($_POST['the-other']) > 0) {
+					$the_other = $_POST['the-other'];
+				}else{
+					// aqui va el mensaje, por lado del servidor
+					$do_not_insert = true;
+				}
+
+				/* esto campo es el programa*/
+				if (isset ($_POST['easy-testimonial-category']) && strlen($_POST['easy-testimonial-category']) > 0) {
+					$testimonial_category = $_POST['easy-testimonial-category'];
+				}else{
+					// aqui va el mensaje, por lado del servidor
+					$do_not_insert = true;
+				}
+			   	
+			   	/* esto campo es el testimonio*/
 				if (isset ($_POST['the-body']) && strlen($_POST['the-body']) > 0) {
-						$body = $_POST['the-body'];
+					$body = $_POST['the-body'];
 				} else {
-						echo '<p class="easy_t_error">Please enter the ' . get_option('easy_t_body_content_field_label','body content') . '.</p>';
-						$do_not_insert = true;
+					echo '<p class="easy_t_error">Please enter the ' . get_option('easy_t_body_content_field_label','body content') . '.</p>';
+					$do_not_insert = true;
 				}			
 				
+				/*aqui valido el archivo o en el upload*/
+				/*va aqui por el peso del archivo*/
+
+				$allowed =  array('gif','png' ,'jpg', 'jpeg');
+				$filename = $_FILES['foto']['name'];
+				$ext = pathinfo($filename, PATHINFO_EXTENSION);
+				if(!in_array($ext,$allowed)) {
+					echo "La Extensión del archivo no es valida";
+					$do_not_upload = true;
+				}elseif(($_FILES['foto']['size'] >= '2097152')){
+					echo "La Peso del archivo no es valida";
+					$do_not_upload = true;
+				}
+				
+				/**/
+
+
 				if(class_exists('ReallySimpleCaptcha') && get_option('easy_t_use_captcha',0)){ 
 					$correct = easy_t_check_captcha(); 
 					if(!$correct){
@@ -232,30 +321,30 @@ function submitTestimonialForm($atts){
 			   
 				if(!$do_not_insert){
 					//snag custom fields
-					$the_other = $the_name = '';					
-					if (isset ($_POST['the-other'])) {
-						$the_other = $_POST['the-other'];
-					}
-					if (isset ($_POST['the-name'])) {
-						$the_name = $_POST['the-name'];
-					}
+					//$the_other = $the_name = '';					
 					
 					$tags = array();
 				   
 					$post = array(
 						'post_title'    => $title,
 						'post_content'  => $body,
-						'post_category' => array(1),  // custom taxonomies too, needs to be an array
+						'post_category' => array(9),  // custom taxonomies too, needs to be an array
 						'tags_input'    => $tags,
 						'post_status'   => 'pending',
 						'post_type'     => 'testimonial'
 					);
-				
+					
+					// id_post = new_id
 					$new_id = wp_insert_post($post);
 				   
 					update_post_meta( $new_id, '_ikcf_client', $the_name );
+					update_post_meta( $new_id, '_ikcf_email', $the_email );
 					update_post_meta( $new_id, '_ikcf_position', $the_other );
-				   
+					wp_set_object_terms( $new_id, array($testimonial_category), 'easy-testimonial-category' );
+					if (!$do_not_upload) {
+						subir_foto($_FILES['foto'], $new_id);
+					}
+
 					$inserted = true;
 
 					// do the wp_insert_post action to insert it
@@ -273,42 +362,96 @@ function submitTestimonialForm($atts){
 				echo '<p class="easy_t_submission_success_message">' . get_option('easy_t_submit_success_message','Thank You For Your Submission!') . '</p>';
 				easy_t_send_notification_email();
 			} else { ?>
+			<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/jQuery-Validation-Engine/2.6.4/validationEngine.jquery.min.css">
+			
 			<!-- New Post Form -->
 			<div id="postbox">
-					<form id="new_post" name="new_post" method="post">
-							<div class="easy_t_field_wrap">
-								<label for="the-title"><?php echo get_option('easy_t_title_field_label','Title'); ?></label><br />
-								<input type="text" id="the-title" value="" tabindex="1" size="20" name="the-title" />
+				este es el formulario frontend...
+				
+					<form id="new_post" name="new_post" class="showhide" method="post" enctype="multipart/form-data">
+						<table class="envie-test">
+							<tr>
+							<!-- Campo Nombre y Apellido -->
+								<td><strong><label for="the-title"><?php echo get_option('easy_t_title_field_label','Title'); ?></label></strong></td>
+								<td><input type="text" id="the-title" class="validate[required]" value="" tabindex="1" size="40" name="the-title" /></td>
 								<p class="easy_t_description"><?php echo get_option('easy_t_title_field_description','This is for internal reference, when viewing the Testimonials in the Dashboard.  This may also be displayed.'); ?></p>
-							</div>
+							</tr>	
+
 							<?php if(!get_option('easy_t_hide_name_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-name"><?php echo get_option('easy_t_name_field_label','Name'); ?></label><br />
-								<input type="text" id="the-name" value="" tabindex="1" size="20" name="the-name" />
+							<tr>
+							<!-- Campo Email -->
+								<td><strong><label for="the-email"><?php echo get_option('easy_t_name_field_label','Name'); ?></label></strong></td>
+								<td><input type="text" id="the-email" class="validate[required,custom[email]]" value="" tabindex="1" size="40" name="the-email" /></td>
 								<p class="easy_t_description"><?php echo get_option('easy_t_name_field_description','This is the name of the entity leaving the Testimonial.  This will be displayed, along with Body Content and Other.'); ?></p>
-							</div>
+							</tr>	
+
 							<?php endif; ?>
 							<?php if(!get_option('easy_t_hide_position_web_other_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-other"><?php echo get_option('easy_t_position_web_other_field_label','Position / Web Address / Other'); ?></label><br />
-								<input type="text" id="the-other" value="" tabindex="1" size="20" name="the-other" />
+							<tr>
+							<!-- Campo Pais -->
+								<td><strong><label for="the-other"><?php echo get_option('easy_t_position_web_other_field_label','Position / Web Address / Other'); ?></label></strong></td>
+								<!-- <td><input type="text" id="the-other" value="" tabindex="1" size="40" name="the-other" /></td> -->
+								<td>
+									<select id="the-other" name="the-other" class="validate[required]" aria-required="true" aria-invalid="false"><option value="Colombia">Colombia</option><option value="Perú">Perú</option><option value="Chile">Chile</option></select>
+								</td>
 								<p class="easy_t_description"><?php echo get_option('easy_t_position_web_other_field_description','This is other identifying information of the entity leaving the Testimonial.  This will be displayed, along with Body Content and Name.'); ?></p>
-							</div>
+							</tr>	
+
 							<?php endif; ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-body"><?php echo get_option('easy_t_body_content_field_label','Body Content'); ?></label><br />
-								<textarea id="the-body" tabindex="3" name="the-body" cols="50" rows="6"></textarea>
+
+							<tr>
+							<!-- Campo Programa -->
+								<td><strong><label for="category">Programa</label></strong></td>
+								<!-- <td><input type="text" id="the-other" value="" tabindex="1" size="40" name="the-other" /></td> -->
+								<td>
+									<!-- Esta clase no estoy seguro -->
+									<select id="category" name="easy-testimonial-category" class="validate[required]" aria-required="true" aria-invalid="false"><option value="Potencialízate">Potencialízate</option><option value="Financiero">Financiero</option><option value="Influencia">Influencia</option><option value="Entrenador Elite">Entrenador Elite</option></select>
+								</td>
+								<p class="easy_t_description"><?php echo get_option('easy_t_position_web_other_field_description','This is other identifying information of the entity leaving the Testimonial.  This will be displayed, along with Body Content and Name.'); ?></p>
+							</tr>
+
+							<tr>
+							<!-- Campo Testimonio -->
+								<td><strong><label for="the-body"><?php echo get_option('easy_t_body_content_field_label','Body Content'); ?></label></strong></td>
+								<td><textarea id="the-body" tabindex="3" class="validate[required]" name="the-body" cols="40" rows="6"></textarea></td>
 								<p class="easy_t_description"><?php echo get_option('easy_t_body_content_field_description','This is the body area of the Testimonial.'); ?></p>
-							</div>						
+							</tr>	
 		
 							<?php if(class_exists('ReallySimpleCaptcha') && get_option('easy_t_use_captcha',0)){ easy_t_outputCaptcha(); } ?>
-							
-							<div class="easy_t_field_wrap"><input type="submit" value="<?php echo get_option('easy_t_submit_button_label','Submit Testimonial'); ?>" tabindex="6" id="submit" name="submit" /></div>
-							<input type="hidden" name="action" value="post" />
+							<tr>
+							<!-- Campo Foto -->
+								<td><strong><label for="the-body">Cargar foto</label></strong></td>
+								<td>
+									<!-- Esta clase no estoy seguro -->
+									<input type="file" name="foto" class="wpcf7-form-control wpcf7-file" id="foto" >
+									<small>Por favor cargue una foto en la cual se identifique su rostro. Tamaño máximo del archivo: 2Mb</small>
+								</td>
+							</tr>
+							<tr>
+								<td></td>								
+								<td>
+									<div class="easy_t_field_wrap">
+									<input type="submit" class="wpcf7-form-control wpcf7-submit wpcf7" value="<?php echo get_option('easy_t_submit_button_label','Submit Testimonial'); ?>" tabindex="6" id="submit" name="submit" /></div>
+
+									<input type="hidden" name="action" value="post" />
+								</td>								
+							</tr>
+						</table>
 							<?php wp_nonce_field( 'new-post' ); ?>
 					</form>
+					<div style="background: #eeeeee; padding: 10px; margin: 20px 0;">
+						<img src="/wp-content/uploads/ejemplofoto.png" style="float:left; margin-right: 10px"><h3>Ejemplo de fotografía</h3>
+						Por favor cargue una foto en la cual se identifique su rostro (tipo documento). No use fotos de cuerpo entero o en las que aparezcan otras personas.
+					</div>
 			</div>
 			<!--// New Post Form -->
+			<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jQuery-Validation-Engine/2.6.4/jquery.validationEngine.min.js"></script>
+			<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jQuery-Validation-Engine/2.6.4/languages/jquery.validationEngine-es.min.js"></script>
+			<script type="text/javascript">
+				jQuery(function (){	
+					jQuery("#new_post").validationEngine();
+				});
+			</script>
 			<?php }
 		   
 			$content = ob_get_contents();
@@ -365,6 +508,7 @@ function easy_testimonials_setup_testimonials(){
 	$postType = array('name' => 'Testimonial', 'plural' =>'Testimonials', 'slug' => 'testimonial' );
 	$fields = array(); 
 	$fields[] = array('name' => 'client', 'title' => 'Client Name', 'description' => "Name of the Client giving the testimonial.  Appears below the Testimonial.", 'type' => 'text'); 
+	$fields[] = array('name' => 'email', 'title' => 'Client Email', 'description' => "Emial of the Client giving the testimonial. ", 'type' => 'text'); 
 	$fields[] = array('name' => 'position', 'title' => 'Position / Location / Other', 'description' => "The information that appears below the client's name.", 'type' => 'text');  
 	$myCustomType = new ikTestimonialsCustomPostType($postType, $fields);
 	register_taxonomy( 'easy-testimonial-category', 'testimonial', array( 'hierarchical' => true, 'label' => __('Testimonial Category'), 'rewrite' => array('slug' => 'testimonial', 'with_front' => false) ) ); 
@@ -476,6 +620,7 @@ function outputRandomTestimonial($atts){
 	//load testimonials into an array
 	$i = 0;
 	$loop = new WP_Query(array( 'post_type' => 'testimonial','posts_per_page' => '-1', 'easy-testimonial-category' => $category));
+
 	while($loop->have_posts()) : $loop->the_post();
 		$postid = get_the_ID();	
 
@@ -515,6 +660,7 @@ function outputRandomTestimonial($atts){
 		}
 		
 		$testimonials[$i]['title'] = get_the_title($postid);
+		
 		
 		$testimonials[$i]['client'] = get_post_meta($postid, '_ikcf_client', true); 	
 		$testimonials[$i]['position'] = get_post_meta($postid, '_ikcf_position', true); 	
@@ -608,6 +754,7 @@ function outputSingleTestimonial($atts){
 	while($loop->have_posts()) : $loop->the_post();
 		$postid = get_the_ID();
 		
+		
 		$testimonial['client'] = get_post_meta($postid, '_ikcf_client', true); 	
 		$testimonial['position'] = get_post_meta($postid, '_ikcf_position', true); 
 		
@@ -641,6 +788,7 @@ function outputSingleTestimonial($atts){
 				$testimonial['image'] = '<img class="attachment-easy_testimonial_thumb wp-post-image" src="' . plugins_url('include/css/mystery_man.png', __FILE__) . '" />';
 			}
 		}
+		
 		
 		$testimonial['client'] = get_post_meta($postid, '_ikcf_client', true); 	
 		$testimonial['position'] = get_post_meta($postid, '_ikcf_position', true); 
@@ -716,6 +864,7 @@ function outputTestimonials($atts){
 	
 	//load testimonials into an array
 	$loop = new WP_Query(array( 'post_type' => 'testimonial','posts_per_page' => $count, 'easy-testimonial-category' => $category, 'orderby' => $orderby, 'order' => $order, 'paged' => get_query_var( 'paged' )));
+
 	while($loop->have_posts()) : $loop->the_post();
 		$postid = get_the_ID();	
 		
@@ -749,6 +898,7 @@ function outputTestimonials($atts){
 				$testimonial['image'] = '<img class="attachment-easy_testimonial_thumb wp-post-image" src="' . plugins_url('include/css/mystery_man.png', __FILE__) . '" />';
 			}
 		}
+		
 		
 		$testimonial['client'] = get_post_meta($postid, '_ikcf_client', true); 	
 		$testimonial['position'] = get_post_meta($postid, '_ikcf_position', true); 
@@ -844,6 +994,7 @@ function outputTestimonialsCycle($atts){
 	
 	//load testimonials into an array
 	$loop = new WP_Query(array( 'post_type' => 'testimonial','posts_per_page' => '-1', 'orderby' => $orderby, 'order' => $order, 'easy-testimonial-category' => $category));
+
 	while($loop->have_posts()) : $loop->the_post();
 		if($easy_t_first){
 			$testimonial_display = '';
@@ -885,6 +1036,7 @@ function outputTestimonialsCycle($atts){
 				$testimonial['image'] = '<img class="attachment-easy_testimonial_thumb wp-post-image" src="' . plugins_url('include/css/mystery_man.png', __FILE__) . '" />';
 			}
 		}
+		
 		
 		$testimonial['client'] = get_post_meta($postid, '_ikcf_client', true); 	
 		$testimonial['position'] = get_post_meta($postid, '_ikcf_position', true); 
