@@ -296,16 +296,17 @@ function submitTestimonialForm($atts){
 				
 				/*aqui valido el archivo o en el upload*/
 				/*va aqui por el peso del archivo*/
-
-				$allowed =  array('gif','png' ,'jpg', 'jpeg');
-				$filename = $_FILES['foto']['name'];
-				$ext = pathinfo($filename, PATHINFO_EXTENSION);
-				if(!in_array($ext,$allowed)) {
-					echo "La Extensión del archivo no es valida";
-					$do_not_upload = true;
-				}elseif(($_FILES['foto']['size'] >= '2097152')){
-					echo "La Peso del archivo no es valida";
-					$do_not_upload = true;
+				if(isset($_FILES['foto'])){
+					$allowed =  array('gif','png' ,'jpg', 'jpeg');
+					$filename = $_FILES['foto']['name'];
+					$ext = pathinfo($filename, PATHINFO_EXTENSION);
+					if(!in_array($ext,$allowed)) {
+						echo "La Extensión del archivo no es valida";
+						$do_not_upload = true;
+					}elseif(($_FILES['foto']['size'] >= '2097152')){
+						echo "La Peso del archivo no es valida";
+						$do_not_upload = true;
+					}
 				}
 				
 				/**/
@@ -529,7 +530,7 @@ function easy_testimonials_setup_testimonials(){
     }
 	//if neither of the above hit, the theme in general supports them for everything.  that includes us!
 	
-	add_image_size( 'easy_testimonial_thumb', 50, 50, true );
+	add_image_size( 'easy_testimonial_thumb', 200, 200, true );
 }
 
 //from http://codex.wordpress.org/Function_Reference/get_intermediate_image_sizes
@@ -795,7 +796,7 @@ function outputSingleTestimonial($atts){
 	
 		?><blockquote class="easy_testimonial">		
 			<?php if ($show_thumbs) {
-				echo $testimonial['image'];
+				echo '<div class=fototestim>' . $testimonial['image']. '</div>';
 			} ?>		
 			<?php if ($show_title) {
 				echo '<p class="easy_testimonial_title">' . get_the_title($postid) . '</p>';
@@ -849,7 +850,7 @@ function outputTestimonials($atts){
 		'show_thumbs' => '',
 		'short_version' => false,
 		'orderby' => 'date',//'none','ID','author','title','name','date','modified','parent','rand','menu_order'
-		'order' => 'ASC'//'DESC'
+		'order' => 'DESC'//'DESC'
 	), $atts ) );
 	
 	$show_thumbs = ($show_thumbs == '') ? get_option('testimonials_image') : $show_thumbs;
@@ -905,7 +906,7 @@ function outputTestimonials($atts){
 	
 		?><blockquote class="easy_testimonial">		
 			<?php if ($show_thumbs) {
-				echo $testimonial['image'];
+				echo '<div class=fototestim>' . $testimonial['image']. '</div>';
 			} ?>		
 			<?php if ($show_title) {
 				echo '<p class="easy_testimonial_title">' . get_the_title($postid) . '</p>';
@@ -961,7 +962,7 @@ function outputTestimonialsCycle($atts){
 		'author_class' => 'testimonial_author',
 		'random' => '',
 		'orderby' => 'date',//'none','ID','author','title','name','date','modified','parent','rand','menu_order'
-		'order' => 'ASC'//'DESC'
+		'order' => 'DESC'//'DESC'
 		
 	), $atts ) );	
 	
@@ -1045,7 +1046,7 @@ function outputTestimonialsCycle($atts){
 	
 			?><div <?php echo $testimonial_display; ?>><blockquote class="easy_testimonial">		
 				<?php if ($show_thumbs) {
-					echo $testimonial['image'];
+					echo '<div class=fototestim>' . $testimonial['image']. '</div>';
 				} ?>		
 				<?php if ($show_title) {
 					echo '<p class="easy_testimonial_title">' . get_the_title($postid) . '</p>';
