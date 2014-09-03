@@ -366,7 +366,6 @@ function submitTestimonialForm($atts){
 			
 			<!-- New Post Form -->
 			<div id="postbox">
-				este es el formulario frontend...
 				
 					<form id="new_post" name="new_post" class="showhide" method="post" enctype="multipart/form-data">
 						<table class="envie-test">
